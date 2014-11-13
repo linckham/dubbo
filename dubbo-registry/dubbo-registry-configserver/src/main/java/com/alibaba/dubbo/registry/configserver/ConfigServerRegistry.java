@@ -11,9 +11,12 @@ import com.cmbc.configserver.client.impl.ConfigClientImpl;
 import com.cmbc.configserver.domain.Configuration;
 import com.cmbc.configserver.remoting.ConnectionStateListener;
 import com.cmbc.configserver.remoting.netty.NettyClientConfig;
+import com.cmbc.configserver.utils.ConfigUtils;
 import com.cmbc.configserver.utils.PathUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -34,20 +37,30 @@ public class ConfigServerRegistry extends FailbackRegistry {
 
     public ConfigServerRegistry(URL url) {
         super(url);
+        List<String> configServerAddress = new ArrayList<String>();
+        // URL format specification
+        //1.If URL format is configserver://0.0.0.0,it means that we will mark the server address with the configuration address file;
+        //2.If URL format is configserver://127.0.0.1:19999,it means that we will mark the server address with the host and post of the URL;
+        //3.If URL format is configserver://127.0.0.1:19999?backup=127.0.0.1:20000,127.0.0.1:200001, it means that we will use multi host port to mark server address
         if (url.isAnyHost()) {
-            throw new IllegalStateException("registry address == null");
+            logger.info(String.format("config server address list is reading from the specified configuration file %s .", ConfigUtils.getProperty(com.cmbc.configserver.utils.Constants.CONFIG_SERVER_ADDRESS_FILE_NAME_KEY, com.cmbc.configserver.utils.Constants.DEFAULT_CONFIG_SERVER_ADDRESS_FILE_NAME)));
+        } else {
+            logger.info(String.format("config server address list is reading from the specified URL %s .", url));
+            configServerAddress.add(url.getHost() + ":" + url.getPort());
+            //support multi host:port
+            String backupURL = url.getParameter(Constants.BACKUP_KEY);
+            if (StringUtils.isNotBlank(backupURL)) {
+                String[] addressArray = backupURL.split(Constants.COMMA_SEPARATOR);
+                configServerAddress.addAll(Arrays.asList(addressArray));
+            }
         }
+
         String group = url.getParameter(Constants.GROUP_KEY, DEFAULT_ROOT);
         if (!group.startsWith(Constants.PATH_SEPARATOR)) {
             group = Constants.PATH_SEPARATOR + group;
         }
         this.root = group;
-
-        List<String> configServerAddress = new ArrayList<String>();
-        //TODO: support multi host:port
-        configServerAddress.add(url.getHost() + ":" + url.getPort());
         configClient = new ConfigClientImpl(new NettyClientConfig(), configServerAddress, new ConnectionStateListener() {
-            @Override
             public void reconnected() {
             }
         });
@@ -98,7 +111,6 @@ public class ConfigServerRegistry extends FailbackRegistry {
                     ResourceListener resourceListener = notifyListeners.get(listener);
                     if (null == resourceListener) {
                         notifyListeners.putIfAbsent(listener, new ResourceListener() {
-                            @Override
                             public void notify(List<Configuration> configs) {
                                 List<URL> urls = configuration2URL(configs);
                                 ConfigServerRegistry.this.notify(url, listener, urls);
@@ -179,7 +191,6 @@ public class ConfigServerRegistry extends FailbackRegistry {
         }
     }
 
-    @Override
     public boolean isAvailable() {
         return this.configClient != null && this.configClient.isAvailable();
     }
