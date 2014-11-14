@@ -2,6 +2,7 @@ package com.alibaba.dubbo.registry.configserver;
 
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
+import com.alibaba.dubbo.common.utils.ConcurrentHashSet;
 import com.alibaba.dubbo.registry.NotifyListener;
 import com.alibaba.dubbo.registry.support.FailbackRegistry;
 import com.alibaba.dubbo.rpc.RpcException;
@@ -18,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -34,6 +36,7 @@ public class ConfigServerRegistry extends FailbackRegistry {
     private final static String DEFAULT_ROOT = DEFAULT_CELL;
     private final ConcurrentMap<URL, ConcurrentHashMap<NotifyListener, ResourceListener>> resourcesListenerMap = new ConcurrentHashMap<URL, ConcurrentHashMap<NotifyListener, ResourceListener>>();
     private final String root;
+    private final Set<String> anyServices = new ConcurrentHashSet<String>();
 
     public ConfigServerRegistry(URL url) {
         super(url);
@@ -97,39 +100,82 @@ public class ConfigServerRegistry extends FailbackRegistry {
             if (null == url || null == listener) {
                 return;
             }
-            List<URL> urls = new ArrayList<URL>();
+            //administrator subscribe all the service of the specified group
+            //admin url admin://192.168.0.24?interface=*&category=providers,consumers,routers,configurators&check=false&classifier=*&enabled=*&group=*&version=*
+            if (Constants.ANY_VALUE.equals(url.getServiceInterface())) {
+                String root = toRootPath();
+                ConcurrentHashMap<NotifyListener, ResourceListener> notifyListeners = this.resourcesListenerMap.get(url);
+                if (null == notifyListeners) {
+                    this.resourcesListenerMap.putIfAbsent(url, new ConcurrentHashMap<NotifyListener, ResourceListener>());
+                    notifyListeners = this.resourcesListenerMap.get(url);
+                }
 
-            for (String path : toCategoryPath(url)) {
-                Configuration configuration = PathUtils.path2Configuration(path);
-                if (null != configuration) {
-                    ConcurrentHashMap<NotifyListener, ResourceListener> notifyListeners = this.resourcesListenerMap.get(url);
-                    if (null == notifyListeners) {
-                        resourcesListenerMap.putIfAbsent(url, new ConcurrentHashMap<NotifyListener, ResourceListener>());
-                        notifyListeners = this.resourcesListenerMap.get(url);
-                    }
-
-                    ResourceListener resourceListener = notifyListeners.get(listener);
-                    if (null == resourceListener) {
-                        notifyListeners.putIfAbsent(listener, new ResourceListener() {
-                            public void notify(List<Configuration> configs) {
-                                List<URL> urls = configuration2URL(configs);
-                                ConfigServerRegistry.this.notify(url, listener, urls);
+                ResourceListener resourceListener = notifyListeners.get(listener);
+                if (null == resourceListener) {
+                    notifyListeners.putIfAbsent(listener, new ResourceListener() {
+                        public void notify(List<Configuration> configs) {
+                            for (Configuration config : configs) {
+                                String resource = URL.decode(config.getResource());
+                                //check whether new resource is adding to the specified root
+                                if (!anyServices.contains(resource)) {
+                                    anyServices.add(resource);
+                                    subscribe(url.setPath(resource)
+                                                    .addParameters(Constants.INTERFACE_KEY, resource,Constants.CHECK_KEY, String.valueOf(false)),
+                                            listener);
+                                }
                             }
-                        });
-                        resourceListener = notifyListeners.get(listener);
-                    }
-                    List<Configuration> configs = this.configClient.subscribe(configuration, resourceListener);
-                    List<URL> tmpUrls = configuration2URL(configs);
-                    if (null != tmpUrls && !tmpUrls.isEmpty()) {
-                        urls.addAll(tmpUrls);
+                        }
+                    });
+                    resourceListener = notifyListeners.get(listener);
+                }
+
+                Configuration rootConfiguration = PathUtils.path2Configuration(root);
+                //get all the resources of the root configuration
+                List<Configuration> configs = this.configClient.subscribe(rootConfiguration, resourceListener);
+                if (null != configs && !configs.isEmpty()) {
+                    for (Configuration config : configs) {
+                        String resource = URL.decode(config.getResource());
+                        if (!anyServices.contains(resource)) {
+                            anyServices.add(resource);
+                            subscribe(url.setPath(resource)
+                                            .addParameters(Constants.INTERFACE_KEY, resource,Constants.CHECK_KEY, String.valueOf(false)),
+                                    listener);
+                        }
                     }
                 }
+            } else {
+                List<URL> urls = new ArrayList<URL>();
+                for (String path : toCategoryPath(url)) {
+                    Configuration configuration = PathUtils.path2Configuration(path);
+                    if (null != configuration) {
+                        ConcurrentHashMap<NotifyListener, ResourceListener> notifyListeners = this.resourcesListenerMap.get(url);
+                        if (null == notifyListeners) {
+                            resourcesListenerMap.putIfAbsent(url, new ConcurrentHashMap<NotifyListener, ResourceListener>());
+                            notifyListeners = this.resourcesListenerMap.get(url);
+                        }
+
+                        ResourceListener resourceListener = notifyListeners.get(listener);
+                        if (null == resourceListener) {
+                            notifyListeners.putIfAbsent(listener, new ResourceListener() {
+                                public void notify(List<Configuration> configs) {
+                                    List<URL> urls = configuration2URL(configs);
+                                    ConfigServerRegistry.this.notify(url, listener, urls);
+                                }
+                            });
+                            resourceListener = notifyListeners.get(listener);
+                        }
+                        List<Configuration> configs = this.configClient.subscribe(configuration, resourceListener);
+                        List<URL> tmpUrls = configuration2URL(configs);
+                        if (null != tmpUrls && !tmpUrls.isEmpty()) {
+                            urls.addAll(tmpUrls);
+                        }
+                    }
+                }
+
+                notify(url, listener, urls);
             }
-
-            notify(url, listener, urls);
-
         } catch (Throwable e) {
-            throw new RpcException("Failed to subscribe " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);
+            throw new RpcException("Failed to subscribe " + url + " to config server " + getUrl() + ", cause: " + e.getMessage(), e);
         }
     }
 
@@ -187,7 +233,7 @@ public class ConfigServerRegistry extends FailbackRegistry {
                 }
             }
         } catch (Throwable e) {
-            throw new RpcException("Failed to un subscribe " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);
+            throw new RpcException("Failed to un subscribe " + url + " to config server " + getUrl() + ", cause: " + e.getMessage(), e);
         }
     }
 
@@ -230,7 +276,7 @@ public class ConfigServerRegistry extends FailbackRegistry {
     }
 
 
-    private URL configuration2URL(Configuration configuration) throws Exception {
+    private URL configuration2URL(Configuration configuration) {
         String url = URL.decode(configuration.getContent());
         if (url.contains("://")) {
             return URL.valueOf(url);

@@ -41,6 +41,6 @@
 		<property name="guestPassword" value="${dubbo.admin.guest.password}" />
 	</bean>
 
-	<bean id="governanceCache" class="com.alibaba.dubbo.governance.sync.RegistryServerSync" />
+	<bean id="sync" class="com.alibaba.dubbo.governance.sync.RegistryServerSync" />
 
 </beans>
