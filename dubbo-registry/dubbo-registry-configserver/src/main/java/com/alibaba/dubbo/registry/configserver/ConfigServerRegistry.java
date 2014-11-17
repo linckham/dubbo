@@ -254,7 +254,7 @@ public class ConfigServerRegistry extends FailbackRegistry {
         if (null == url) return null;
         Configuration config = new Configuration();
         config.setCell(url.getParameter(Constants.GROUP_KEY, DEFAULT_CELL));
-        config.setResource(url.getParameter(Constants.INTERFACE_KEY, "*"));
+        config.setResource(url.getParameter(Constants.INTERFACE_KEY, Constants.ANY_VALUE));
         config.setType(url.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY));
         config.setContent(URL.encode(url.toFullString()));
         return config;
