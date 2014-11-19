@@ -42,13 +42,13 @@ public class OwnerServiceImpl extends AbstractService implements OwnerService {
     public List<Owner> findByService(String serviceName) {
         List<Provider> pList = providerService.findByService(serviceName);
         List<Override> cList = overrideService.findByServiceAndAddress(serviceName, Constants.ANYHOST_VALUE);
-        return toOverrideLiset(pList,cList);
+        return toOverrideList(pList, cList);
     }
 
     public List<Owner> findAll() {
         List<Provider> pList = providerService.findAll();
         List<Override> cList = overrideService.findAll();
-        return toOverrideLiset(pList,cList);
+        return toOverrideList(pList, cList);
     }
 
     public Owner findById(Long id) {
@@ -56,28 +56,32 @@ public class OwnerServiceImpl extends AbstractService implements OwnerService {
         return null;
     }
     
-    private List<Owner> toOverrideLiset(List<Provider> pList, List<Override> cList){
+    private List<Owner> toOverrideList(List<Provider> pList, List<Override> cList){
         Map<String, Owner> oList = new HashMap<String, Owner>();
-        for(Provider p : pList){
-            if(p.getUsername() != null){
-            	for (String username : Constants.COMMA_SPLIT_PATTERN.split(p.getUsername())) {
-	                Owner o = new Owner();
-	                o.setService(p.getService());
-	                o.setUsername(username);
-	                oList.put(o.getService() + "/" + o.getUsername(), o);
-            	}
+        if(null != pList && !pList.isEmpty()) {
+            for (Provider p : pList) {
+                if (p.getUsername() != null) {
+                    for (String username : Constants.COMMA_SPLIT_PATTERN.split(p.getUsername())) {
+                        Owner o = new Owner();
+                        o.setService(p.getService());
+                        o.setUsername(username);
+                        oList.put(o.getService() + "/" + o.getUsername(), o);
+                    }
+                }
             }
         }
-        for(Override c : cList){
-        	Map<String, String> params = StringUtils.parseQueryString(c.getParams());
-        	String usernames = params.get("owner");
-            if(usernames != null && usernames.length() > 0){
-            	for (String username : Constants.COMMA_SPLIT_PATTERN.split(usernames)) {
-            		Owner o = new Owner();
-                    o.setService(c.getService());
-                    o.setUsername(username);
-                    oList.put(o.getService() + "/" + o.getUsername(), o);
-            	}
+        if(null !=cList && !cList.isEmpty()) {
+            for (Override c : cList) {
+                Map<String, String> params = StringUtils.parseQueryString(c.getParams());
+                String userNames = params.get("owner");
+                if (userNames != null && userNames.length() > 0) {
+                    for (String username : Constants.COMMA_SPLIT_PATTERN.split(userNames)) {
+                        Owner o = new Owner();
+                        o.setService(c.getService());
+                        o.setUsername(username);
+                        oList.put(o.getService() + "/" + o.getUsername(), o);
+                    }
+                }
             }
         }
         return new ArrayList<Owner>(oList.values());
@@ -95,13 +99,13 @@ public class OwnerServiceImpl extends AbstractService implements OwnerService {
         } else {
 	        for(Override override : overrides){
 	        	Map<String, String> params = StringUtils.parseQueryString(override.getParams());
-	        	String usernames = params.get("owner");
-	        	if (usernames == null || usernames.length() == 0) {
-	        		usernames = owner.getUsername();
+	        	String userNames = params.get("owner");
+	        	if (userNames == null || userNames.length() == 0) {
+	        		userNames = owner.getUsername();
 	        	} else {
-	        		usernames = usernames + "," + owner.getUsername();
+	        		userNames = userNames + "," + owner.getUsername();
 	        	}
-	        	params.put("owner", usernames);
+	        	params.put("owner", userNames);
 	        	override.setParams(StringUtils.toQueryString(params));
         		overrideService.updateOverride(override);
 	        }
@@ -120,13 +124,13 @@ public class OwnerServiceImpl extends AbstractService implements OwnerService {
         } else {
 	        for(Override override : overrides){
 	        	Map<String, String> params = StringUtils.parseQueryString(override.getParams());
-	        	String usernames = params.get("owner");
-	        	if (usernames != null && usernames.length() > 0) {
-	        		if (usernames.equals(owner.getUsername())) {
+	        	String userNames = params.get("owner");
+	        	if (userNames != null && userNames.length() > 0) {
+	        		if (userNames.equals(owner.getUsername())) {
 	        			params.remove("owner");
 	        		} else {
-	        			usernames = usernames.replace(owner.getUsername() + ",", "").replace("," + owner.getUsername(), "");
-	        			params.put("owner", usernames);
+	        			userNames = userNames.replace(owner.getUsername() + ",", "").replace("," + owner.getUsername(), "");
+	        			params.put("owner", userNames);
 	        		}
 	        		if (params.size() > 0) {
 		        		override.setParams(StringUtils.toQueryString(params));

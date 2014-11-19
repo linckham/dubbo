@@ -15,10 +15,7 @@
  */
 package com.alibaba.dubbo.governance.sync.util;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
@@ -30,13 +27,12 @@ import com.alibaba.dubbo.registry.common.domain.Route;
 /**
  * @author ding.lid
  */
+@SuppressWarnings({"unchecked"})
 public class SyncUtils {
     
     public static final String SERVICE_FILTER_KEY = ".service";
 
     public static final String ADDRESS_FILTER_KEY = ".address";
-    
-    public static final String ID_FILTER_KEY = ".id";
 
     public static Provider url2Provider(Pair<Long, URL> pair) {
     	if (pair == null) {
@@ -66,7 +62,8 @@ public class SyncUtils {
     }
     
     public static List<Provider> url2ProviderList(Map<Long, URL> ps) {
-        List<Provider> ret = new ArrayList<Provider>();
+        if(null == ps || ps.isEmpty()) return Collections.EMPTY_LIST;
+        List<Provider> ret = new ArrayList<Provider>(ps.size());
         for(Map.Entry<Long, URL> entry : ps.entrySet()) {
             ret.add(url2Provider(new Pair<Long, URL>(entry.getKey(), entry.getValue())));
         }
@@ -95,8 +92,8 @@ public class SyncUtils {
     }
     
     public static List<Consumer> url2ConsumerList(Map<Long, URL> cs) {
-        List<Consumer> list = new ArrayList<Consumer>();
-        if(cs == null) return list;
+        if(null == cs || cs.isEmpty()) return Collections.EMPTY_LIST;
+        List<Consumer> list = new ArrayList<Consumer>(cs.size());
         for(Map.Entry<Long, URL> entry : cs.entrySet()) {
             list.add(url2Consumer(new Pair<Long, URL>(entry.getKey(), entry.getValue())));
         }
@@ -126,8 +123,8 @@ public class SyncUtils {
     }
     
     public static List<Route> url2RouteList(Map<Long, URL> cs) {
-        List<Route> list = new ArrayList<Route>();
-        if(cs == null) return list;
+        if(cs == null || cs.isEmpty()) return Collections.EMPTY_LIST;
+        List<Route> list = new ArrayList<Route>(cs.size());
         for(Map.Entry<Long, URL> entry : cs.entrySet()) {
             list.add(url2Route(new Pair<Long, URL>(entry.getKey(), entry.getValue())));
         }
@@ -162,8 +159,8 @@ public class SyncUtils {
         o.setEnabled(url.getParameter(Constants.ENABLED_KEY, true));
 
         String host = url.getHost();
-        boolean anyhost = url.getParameter(Constants.ANYHOST_VALUE, false);
-        if(!anyhost || !"0.0.0.0".equals(host)) {
+        boolean anyHost = url.getParameter(Constants.ANYHOST_VALUE, false);
+        if(!anyHost || !"0.0.0.0".equals(host)) {
             o.setAddress(url.getAddress());
         }
 
@@ -175,18 +172,18 @@ public class SyncUtils {
         return o;
     }
     
-    // Map<category, Map<servicename, Map<Long, URL>>>
+    // Map<category, Map<service, Map<Long, URL>>>
     public static <SM extends Map<String, Map<Long, URL>>> Map<Long, URL> filterFromCategory(Map<String, SM> urls, Map<String, String> filter) {
-        String c = (String) filter.get(Constants.CATEGORY_KEY);
+        String c = filter.get(Constants.CATEGORY_KEY);
         if(c==null) throw new IllegalArgumentException("no category");
         
         filter.remove(Constants.CATEGORY_KEY);
         return filterFromService(urls.get(c), filter);
     }
-    
+
     public static List<com.alibaba.dubbo.registry.common.domain.Override> url2OverrideList(Map<Long, URL> cs) {
-        List<com.alibaba.dubbo.registry.common.domain.Override> list = new ArrayList<com.alibaba.dubbo.registry.common.domain.Override>();
-        if(cs == null) return list;
+        if(cs == null) return Collections.EMPTY_LIST;
+        List<com.alibaba.dubbo.registry.common.domain.Override> list = new ArrayList<com.alibaba.dubbo.registry.common.domain.Override>(cs.size());
         for(Map.Entry<Long, URL> entry : cs.entrySet()) {
             list.add(url2Override(new Pair<Long, URL>(entry.getKey(), entry.getValue())));
         }
@@ -194,12 +191,12 @@ public class SyncUtils {
     }
     
     
-    // Map<servicename, Map<Long, URL>>
+    // Map<service, Map<Long, URL>>
     public static Map<Long, URL> filterFromService(Map<String, Map<Long, URL>> urls, Map<String, String> filter) {
         Map<Long, URL> ret = new HashMap<Long, URL>();
         if(urls == null) return ret;
         
-        String s = (String) filter.remove(SERVICE_FILTER_KEY);
+        String s =  filter.remove(SERVICE_FILTER_KEY);
         if(s == null) {
             for(Map.Entry<String, Map<Long, URL>> entry : urls.entrySet()) {
                 filterFromUrls(entry.getValue(), ret, filter);

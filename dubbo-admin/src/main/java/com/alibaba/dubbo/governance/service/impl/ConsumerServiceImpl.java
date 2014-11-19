@@ -76,13 +76,15 @@ public class ConsumerServiceImpl extends AbstractService implements ConsumerServ
     public List<String> findAddressesByApplication(String application) {
         List<String> ret = new ArrayList<String>();
         ConcurrentMap<String, Map<Long, URL>> consumerUrls = getRegistryCache().get(Constants.CONSUMERS_CATEGORY);
-        for(Map.Entry<String, Map<Long, URL>> e1 : consumerUrls.entrySet()) {
-            Map<Long, URL> value = e1.getValue();
-            for(Map.Entry<Long, URL> e2 : value.entrySet()) {
-                URL u = e2.getValue();
-                if(application.equals(u.getParameter(Constants.APPLICATION_KEY))) {
-                    String addr = u.getAddress();
-                    if(addr != null) ret.add(addr);
+        if (null != consumerUrls && !consumerUrls.isEmpty()) {
+            for (Map.Entry<String, Map<Long, URL>> e1 : consumerUrls.entrySet()) {
+                Map<Long, URL> value = e1.getValue();
+                for (Map.Entry<Long, URL> e2 : value.entrySet()) {
+                    URL u = e2.getValue();
+                    if (application.equals(u.getParameter(Constants.APPLICATION_KEY))) {
+                        String addr = u.getAddress();
+                        if (addr != null) ret.add(addr);
+                    }
                 }
             }
         }
@@ -94,13 +96,14 @@ public class ConsumerServiceImpl extends AbstractService implements ConsumerServ
         List<String> ret = new ArrayList<String>();
         ConcurrentMap<String, Map<Long, URL>> consumerUrls = getRegistryCache().get(Constants.CONSUMERS_CATEGORY);
         if(null == consumerUrls) return ret;
-        
-        for(Map.Entry<Long, URL> e2 : consumerUrls.get(service).entrySet()) {
-            URL u = e2.getValue();
-            String app = u.getAddress();
-            if(app != null) ret.add(app);
+        Map<Long, URL> urls = consumerUrls.get(service);
+        if (null != urls && !urls.isEmpty()) {
+            for (Map.Entry<Long, URL> e2 : consumerUrls.get(service).entrySet()) {
+                URL u = e2.getValue();
+                String app = u.getAddress();
+                if (app != null) ret.add(app);
+            }
         }
-        
         return ret;
     }
     

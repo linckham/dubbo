@@ -197,6 +197,10 @@ public class Override extends Entity {
         if (version != null) {
             param.put(Constants.VERSION_KEY, version);
         }
+        //add by tongchuan.lin
+        if(!param.containsKey(Constants.INTERFACE_KEY)){
+            param.put(Constants.INTERFACE_KEY,path);
+        }
         sb.append(StringUtils.toQueryString(param));
         return URL.valueOf(sb.toString());
     }

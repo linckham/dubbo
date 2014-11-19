@@ -130,23 +130,21 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             doRegister(url);
         } catch (Exception e) {
             Throwable t = e;
-
+            // 将失败的注册请求记录到失败列表，定时重试
+            failedRegistered.add(url);
             // 如果开启了启动时检测，则直接抛出异常
             boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
                     && url.getParameter(Constants.CHECK_KEY, true)
                     && ! Constants.CONSUMER_PROTOCOL.equals(url.getProtocol());
-            boolean skipFailback = t instanceof SkipFailbackWrapperException;
-            if (check || skipFailback) {
-                if(skipFailback) {
+            boolean skipFailBack = t instanceof SkipFailbackWrapperException;
+            if (check || skipFailBack) {
+                if(skipFailBack) {
                     t = t.getCause();
                 }
                 throw new IllegalStateException("Failed to register " + url + " to registry " + getUrl().getAddress() + ", cause: " + t.getMessage(), t);
             } else {
                 logger.error("Failed to register " + url + ", waiting for retry, cause: " + t.getMessage(), t);
             }
-
-            // 将失败的注册请求记录到失败列表，定时重试
-            failedRegistered.add(url);
         }
     }
 
@@ -160,23 +158,21 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             doUnregister(url);
         } catch (Exception e) {
             Throwable t = e;
-
+            // 将失败的取消注册请求记录到失败列表，定时重试
+            failedUnregistered.add(url);
             // 如果开启了启动时检测，则直接抛出异常
             boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
                     && url.getParameter(Constants.CHECK_KEY, true)
                     && ! Constants.CONSUMER_PROTOCOL.equals(url.getProtocol());
-            boolean skipFailback = t instanceof SkipFailbackWrapperException;
-            if (check || skipFailback) {
-                if(skipFailback) {
+            boolean skipFailBack = t instanceof SkipFailbackWrapperException;
+            if (check || skipFailBack) {
+                if(skipFailBack) {
                     t = t.getCause();
                 }
                 throw new IllegalStateException("Failed to unregister " + url + " to registry " + getUrl().getAddress() + ", cause: " + t.getMessage(), t);
             } else {
-                logger.error("Failed to uregister " + url + ", waiting for retry, cause: " + t.getMessage(), t);
+                logger.error("Failed to unregister " + url + ", waiting for retry, cause: " + t.getMessage(), t);
             }
-
-            // 将失败的取消注册请求记录到失败列表，定时重试
-            failedUnregistered.add(url);
         }
     }
 
@@ -195,12 +191,14 @@ public abstract class FailbackRegistry extends AbstractRegistry {
                 notify(url, listener, urls);
                 logger.error("Failed to subscribe " + url + ", Using cached list: " + urls + " from cache file: " + getUrl().getParameter(Constants.FILE_KEY, System.getProperty("user.home") + "/dubbo-registry-" + url.getHost() + ".cache") + ", cause: " + t.getMessage(), t);
             } else {
+                // 将失败的订阅请求记录到失败列表，定时重试
+                addFailedSubscribed(url, listener);
                 // 如果开启了启动时检测，则直接抛出异常
                 boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
                         && url.getParameter(Constants.CHECK_KEY, true);
-                boolean skipFailback = t instanceof SkipFailbackWrapperException;
-                if (check || skipFailback) {
-                    if(skipFailback) {
+                boolean skipFailBack = t instanceof SkipFailbackWrapperException;
+                if (check || skipFailBack) {
+                    if(skipFailBack) {
                         t = t.getCause();
                     }
                     throw new IllegalStateException("Failed to subscribe " + url + ", cause: " + t.getMessage(), t);
@@ -208,9 +206,6 @@ public abstract class FailbackRegistry extends AbstractRegistry {
                     logger.error("Failed to subscribe " + url + ", waiting for retry, cause: " + t.getMessage(), t);
                 }
             }
-
-            // 将失败的订阅请求记录到失败列表，定时重试
-            addFailedSubscribed(url, listener);
         }
     }
 
@@ -223,20 +218,6 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             doUnsubscribe(url, listener);
         } catch (Exception e) {
             Throwable t = e;
-
-            // 如果开启了启动时检测，则直接抛出异常
-            boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
-                    && url.getParameter(Constants.CHECK_KEY, true);
-            boolean skipFailback = t instanceof SkipFailbackWrapperException;
-            if (check || skipFailback) {
-                if(skipFailback) {
-                    t = t.getCause();
-                }
-                throw new IllegalStateException("Failed to unsubscribe " + url + " to registry " + getUrl().getAddress() + ", cause: " + t.getMessage(), t);
-            } else {
-                logger.error("Failed to unsubscribe " + url + ", waiting for retry, cause: " + t.getMessage(), t);
-            }
-
             // 将失败的取消订阅请求记录到失败列表，定时重试
             Set<NotifyListener> listeners = failedUnsubscribed.get(url);
             if (listeners == null) {
@@ -244,6 +225,19 @@ public abstract class FailbackRegistry extends AbstractRegistry {
                 listeners = failedUnsubscribed.get(url);
             }
             listeners.add(listener);
+
+            // 如果开启了启动时检测，则直接抛出异常
+            boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
+                    && url.getParameter(Constants.CHECK_KEY, true);
+            boolean skipFailBack = t instanceof SkipFailbackWrapperException;
+            if (check || skipFailBack) {
+                if(skipFailBack) {
+                    t = t.getCause();
+                }
+                throw new IllegalStateException("Failed to un subscribe " + url + " to registry " + getUrl().getAddress() + ", cause: " + t.getMessage(), t);
+            } else {
+                logger.error("Failed to un subscribe " + url + ", waiting for retry, cause: " + t.getMessage(), t);
+            }
         }
     }
 
@@ -380,7 +374,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             }
             if (failed.size() > 0) {
                 if (logger.isInfoEnabled()) {
-                    logger.info("Retry unsubscribe " + failed);
+                    logger.info("Retry un subscribe " + failed);
                 }
                 try {
                     for (Map.Entry<URL, Set<NotifyListener>> entry : failed.entrySet()) {
@@ -391,12 +385,12 @@ public abstract class FailbackRegistry extends AbstractRegistry {
                                 doUnsubscribe(url, listener);
                                 listeners.remove(listener);
                             } catch (Throwable t) { // 忽略所有异常，等待下次重试
-                                logger.warn("Failed to retry unsubscribe " + failed + ", waiting for again, cause: " + t.getMessage(), t);
+                                logger.warn("Failed to retry un subscribe " + failed + ", waiting for again, cause: " + t.getMessage(), t);
                             }
                         }
                     }
                 } catch (Throwable t) { // 忽略所有异常，等待下次重试
-                    logger.warn("Failed to retry unsubscribe " + failed + ", waiting for again, cause: " + t.getMessage(), t);
+                    logger.warn("Failed to retry un subscribe " + failed + ", waiting for again, cause: " + t.getMessage(), t);
                 }
             }
         }
@@ -441,7 +435,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         }
     }
 
-    // ==== 模板方法 ====
+    // ==== template method ====
 
     protected abstract void doRegister(URL url);
 
