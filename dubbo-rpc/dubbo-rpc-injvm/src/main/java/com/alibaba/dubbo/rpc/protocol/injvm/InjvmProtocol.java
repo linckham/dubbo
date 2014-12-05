@@ -95,7 +95,7 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
     	final boolean isJvmRefer;
     	String scope = url.getParameter(Constants.SCOPE_KEY);
     	//本身已经是jvm协议了，走正常流程就是了.
-    	if (Constants.LOCAL_PROTOCOL.toString().equals(url.getProtocol())) {
+    	if (Constants.LOCAL_PROTOCOL.equals(url.getProtocol())) {
     		isJvmRefer = false;
     	} else if (Constants.SCOPE_LOCAL.equals(scope) || (url.getParameter("injvm", false))) {
 			//如果声明为本地引用

@@ -65,6 +65,7 @@ public class ConfigServerRegistry extends FailbackRegistry {
         this.root = group;
         configClient = new ConfigClientImpl(new NettyClientConfig(), configServerAddress, new ConnectionStateListener() {
             public void reconnected() {
+                logger.info("config server registry has reconnected.");
                 try{
                     recover();
                 }

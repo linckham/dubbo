@@ -44,7 +44,7 @@ import java.lang.annotation.Target;
  * 当用户配置使用mina时，就会报找不到扩展点，
  * 而不是报加载扩展点失败，以及失败原因。
  * 
- * @deprecated 因为含义广泛废弃，改用功 {@link com.alibaba.dubbo.common.extension.SPI}
+ * @deprecated 因为含义广泛废弃，改用 {@link com.alibaba.dubbo.common.extension.SPI}
  * @author william.liangf
  * @author ding.lid
  * @export

@@ -89,8 +89,7 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
         public Invoker<T> select(Invocation invocation) {
             String key = toKey(invocation.getArguments());
             byte[] digest = md5(key);
-            Invoker<T> invoker = sekectForKey(hash(digest, 0));
-            return invoker;
+            return selectForKey(hash(digest, 0));
         }
 
         private String toKey(Object[] args) {
@@ -103,7 +102,7 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
             return buf.toString();
         }
 
-        private Invoker<T> sekectForKey(long hash) {
+        private Invoker<T> selectForKey(long hash) {
             Invoker<T> invoker;
             Long key = hash;
             if (!virtualInvokers.containsKey(key)) {

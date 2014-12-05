@@ -40,7 +40,7 @@ public @interface Adaptive {
     /**
      * 从{@link URL}的Key名，对应的Value作为要Adapt成的Extension名。
      * <p>
-     * 如果{@link URL}这些Key都没有Value，使用 用 缺省的扩展（在接口的{@link SPI}中设定的值）。<br>
+     * 如果{@link URL}这些Key都没有Value，使用缺省的扩展（在接口的{@link SPI}中设定的值）。<br>
      * 比如，<code>String[] {"key1", "key2"}</code>，表示
      * <ol>
      * <li>先在URL上找key1的Value作为要Adapt成的Extension名；

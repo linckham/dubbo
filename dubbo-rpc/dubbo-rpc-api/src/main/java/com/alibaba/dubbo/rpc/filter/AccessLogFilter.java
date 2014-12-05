@@ -83,7 +83,7 @@ public class AccessLogFilter implements Filter {
     private class LogTask implements Runnable {
         public void run() {
             try {
-                if (logQueue != null && logQueue.size() > 0) {
+                if (logQueue.size() > 0) {
                     for (Map.Entry<String, Set<String>> entry : logQueue.entrySet()) {
                         try {
                             String accesslog = entry.getKey();
